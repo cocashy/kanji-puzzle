@@ -34,8 +34,8 @@ class Block {
     btx.fillStyle = `rgb(0, 0, 0, ${this.alpha})`;
     btx.textAlign = "center";
     btx.textBaseline = "middle";
-    if (playerRow === row && playerColumn === column && isDragging) {
-      btx.fillText(this.char, playerX, playerY);
+    if (player.row === row && player.column === column && player.isDragging) {
+      btx.fillText(this.char, player.x, player.y);
     } else {
       const x = MARGIN + BLOCK_SIZE * 0.5 + BLOCK_SIZE * column;
       const y = MARGIN + BLOCK_SIZE * 0.5 + BLOCK_SIZE * row;
@@ -158,6 +158,69 @@ class Board {
   }
 }
 
+class Player {
+  constructor() {
+    this.x;
+    this.y;
+    this.column;
+    this.row;
+    this.isDragging = false;
+  }
+
+  update(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = isMobile ? e.touches[0].clientX : e.clientX;
+    const clientY = isMobile ? e.touches[0].clientY : e.clientY;
+    this.x = (clientX - rect.left) / canvas.width * buffer.width;
+    this.y = (clientY - rect.top) / canvas.width * buffer.width;
+  }
+}
+
+const onTouchStart = (e) => {
+  e.preventDefault();
+  player.isDragging = true;
+  player.update(e);
+  const column = Math.floor((player.x - MARGIN) / BLOCK_SIZE);
+  const row = Math.floor((player.y - MARGIN) / BLOCK_SIZE);
+
+  if (row < 0 || 2 < row || column < 0 || 2 < column) return;
+
+  player.column = column;
+  player.row = row;
+}
+
+const onTouchEnd = (e) => {
+  e.preventDefault();
+  player.isDragging = false;
+  const blocks = board.findFormingIdioms();
+  for (let [i, j] of blocks) {
+    board.grid[i][j].isFading = true;
+  }
+}
+
+const onTouchMove = (e) => {
+  e.preventDefault();
+  player.update(e);
+  if (!player.isDragging) return;
+
+  const column = Math.floor((player.x - MARGIN) / BLOCK_SIZE);
+  const row = Math.floor((player.y - MARGIN) / BLOCK_SIZE);
+
+  if (row < 0 || 2 < row || column < 0 || 2 < column) return;
+  if (player.column === column && player.row === row) return;
+
+  if (player.column === undefined || player.row === undefined) return;
+  [
+    board.grid[row][column],
+    board.grid[player.row][player.column]
+  ] = [
+    board.grid[player.row][player.column],
+    board.grid[row][column]
+  ];
+  player.column = column;
+  player.row = row;
+}
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
@@ -182,9 +245,11 @@ buffer.height = HEIGHT;
 const isMobile = "ontouchstart" in window;
 
 let board;
+let player;
 
 const start = () => {
   board = new Board();
+  player = new Player();
 }
 
 const update = () => {
@@ -211,69 +276,17 @@ const loop = () => {
   window.requestAnimationFrame(loop);
 }
 
-let playerX = 0;
-let playerY = 0;
-let playerColumn;
-let playerRow;
-let isDragging = false;
-
-const onDown = (e) => {
-  isDragging = true;
-  const row = Math.floor((playerY - MARGIN) / BLOCK_SIZE);
-  const column = Math.floor((playerX - MARGIN) / BLOCK_SIZE);
-
-  if (row < 0 || 2 < row || column < 0 || 2 < column) return;
-
-  playerColumn = column;
-  playerRow = row;
-}
-
-const onUp = (e) => {
-  isDragging = false;
-  const blocks = board.findFormingIdioms();
-  for (let [i, j] of blocks) {
-    board.grid[i][j].isFading = true;
-  }
-}
-
-const onMove = (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const clientX = isMobile ? e.touches[0].clientX : e.clientX;
-  const clientY = isMobile ? e.touches[0].clientY : e.clientY;
-  playerX = (clientX - rect.left) / canvas.width * buffer.width;
-  playerY = (clientY - rect.top) / canvas.width * buffer.width;
-
-  if (!isDragging) return;
-
-  const row = Math.floor((playerY - MARGIN) / BLOCK_SIZE);
-  const column = Math.floor((playerX - MARGIN) / BLOCK_SIZE);
-
-  if (row < 0 || 2 < row || column < 0 || 2 < column) return;
-  if (playerRow === row && playerColumn === column) return;
-
-  if (playerRow === undefined || playerColumn === undefined) return;
-  [
-    board.grid[row][column],
-    board.grid[playerRow][playerColumn]
-  ] = [
-    board.grid[playerRow][playerColumn],
-    board.grid[row][column]
-  ];
-  playerColumn = column;
-  playerRow = row;
-}
-
 window.onload = () => {
   start();
   loop();
 }
 
 if (isMobile) {
-  window.ontouchstart = onDown;
-  window.ontouchend = onUp;
-  window.ontouchmove = onMove;
+  window.ontouchstart = onTouchStart;
+  window.ontouchend = onTouchEnd;
+  window.ontouchmove = onTouchMove;
 } else {
-  window.onmousedown = onDown;
-  window.onmouseup = onUp;
-  window.onmousemove = onMove;
+  window.onmousedown = onTouchStart;
+  window.onmouseup = onTouchEnd;
+  window.onmousemove = onTouchMove;
 }
