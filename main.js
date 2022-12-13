@@ -177,7 +177,6 @@ class Player {
 }
 
 const onTouchStart = (e) => {
-  e.preventDefault();
   player.isDragging = true;
   player.update(e);
   const column = Math.floor((player.x - MARGIN) / BLOCK_SIZE);
@@ -190,7 +189,6 @@ const onTouchStart = (e) => {
 }
 
 const onTouchEnd = (e) => {
-  e.preventDefault();
   player.isDragging = false;
   const blocks = board.findFormingIdioms();
   for (let [i, j] of blocks) {
@@ -199,7 +197,6 @@ const onTouchEnd = (e) => {
 }
 
 const onTouchMove = (e) => {
-  e.preventDefault();
   player.update(e);
   if (!player.isDragging) return;
 
@@ -244,13 +241,8 @@ buffer.height = HEIGHT;
 
 const isMobile = "ontouchstart" in window;
 
-let board;
-let player;
-
-const start = () => {
-  board = new Board();
-  player = new Player();
-}
+const board = new Board();
+const player = new Player();
 
 const update = () => {
   board.update();
@@ -263,7 +255,7 @@ const draw = () => {
   board.draw();
 }
 
-const loop = () => {
+const render = () => {
   update();
   draw();
 
@@ -273,13 +265,10 @@ const loop = () => {
     0, 0, canvas.width, canvas.height
   );
 
-  window.requestAnimationFrame(loop);
+  window.requestAnimationFrame(render);
 }
 
-window.onload = () => {
-  start();
-  loop();
-}
+window.onload = render;
 
 if (isMobile) {
   window.ontouchstart = onTouchStart;
